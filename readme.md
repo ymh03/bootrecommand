@@ -9,3 +9,9 @@ pip install pandas streamlit sentence-transformers scikit-surprise torch -i http
 ```
 python -m streamlit run main.py
 ```
+
+
+
+截图
+
+![图片](./readme.assets/%E5%9B%BE%E7%89%87.png)
