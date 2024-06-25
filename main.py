@@ -53,12 +53,13 @@ def generate_embeddings(texts):
 
     return embeddings
 
-
 @st.cache_resource
 def get_book_embeddings():
     return generate_embeddings(books_df['Book-Title'].tolist())
 
-books_df['title_embedding'] = get_book_embeddings()
+# 生成并存储嵌入
+book_embeddings = get_book_embeddings()
+books_df['title_embedding'] = list(book_embeddings.numpy())
 
 # Streamlit 应用程序
 st.title("书籍推荐系统")
@@ -98,11 +99,11 @@ def get_further_recommendations(ratings, books_df, filtered_ratings_df):
     return recommended_books
 
 if st.button("关键词图书推荐") or input_keyword:
-    input_embedding = generate_embeddings(input_keyword).squeeze()
+    input_embedding = generate_embeddings(input_keyword).squeeze().unsqueeze(0)
 
     # 计算相似度
-    title_embeddings_matrix = torch.stack(books_df['title_embedding'].tolist()).numpy()
-    similarities = cosine_similarity(input_embedding.unsqueeze(0).numpy(), title_embeddings_matrix)
+    title_embeddings_matrix = torch.stack([torch.tensor(embed) for embed in books_df['title_embedding']]).numpy()
+    similarities = cosine_similarity(input_embedding.numpy(), title_embeddings_matrix)
     books_df['similarity'] = similarities.flatten()
 
     # 找到相似度最高的三本书
