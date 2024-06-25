@@ -37,10 +37,22 @@ filtered_ratings_df = ratings_df[ratings_df['ISBN'].isin(books_df['ISBN'])]
 # 生成图书标题嵌入
 @st.cache_resource
 def generate_embeddings(texts):
+    # 如果输入是单个文本，则转换为列表，以便适应tokenizer的要求
+    if isinstance(texts, str):
+        texts = [texts]
+
+    # 使用tokenizer对文本进行分词和编码
     inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+
+    # 使用BertModel生成文本的嵌入
     with torch.no_grad():
         outputs = bert_model(**inputs)
-    return outputs.last_hidden_state.mean(dim=1)
+
+    # 取得最后一层的隐藏状态，并计算平均值作为嵌入表示
+    embeddings = outputs.last_hidden_state.mean(dim=1)
+
+    return embeddings
+
 
 @st.cache_resource
 def get_book_embeddings():
