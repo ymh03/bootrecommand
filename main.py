@@ -10,7 +10,7 @@ st.set_option('deprecation.showPyplotGlobalUse', False)
 st.set_option('deprecation.showfileUploaderEncoding', False)
 
 # 加载多语言的 Sentence-Transformer 模型
-
+@st.cache_resource
 def load_model():
     return SentenceTransformer('distiluse-base-multilingual-cased-v1')
 
@@ -20,18 +20,27 @@ model = load_model()
 books_file_path = 'BooksTest.csv'
 ratings_file_path = 'RatingsTest.csv'
 
-books_df = pd.read_csv(books_file_path)
-ratings_df = pd.read_csv(ratings_file_path)
+@st.cache_resource
+def load_data():
+    books_df = pd.read_csv(books_file_path)
+    ratings_df = pd.read_csv(ratings_file_path)
+    return books_df, ratings_df
+
+books_df, ratings_df = load_data()
 
 # 筛选出 Ratings.csv 中存在于 BooksTest.csv 的 ISBN 记录
 filtered_ratings_df = ratings_df[ratings_df['ISBN'].isin(books_df['ISBN'])]
 
 # 生成图书标题嵌入
+@st.cache_resource
 def generate_embeddings(texts):
     return model.encode(texts, convert_to_tensor=True)
 
-# 生成并存储图书标题的嵌入
-books_df['title_embedding'] = list(generate_embeddings(books_df['Book-Title'].values))
+@st.cache_resource
+def get_book_embeddings():
+    return list(generate_embeddings(books_df['Book-Title'].values))
+
+books_df['title_embedding'] = get_book_embeddings()
 
 # Streamlit 应用程序
 st.title("书籍推荐系统")
@@ -85,17 +94,17 @@ if st.button("关键词图书推荐") or input_keyword:
     st.write("推荐书籍:")
     for _, row in recommended_books.iterrows():
         st.write(f"书名: {row['Book-Title']}, 作者: {row['Book-Author']}, 出版年份: {row['Year-Of-Publication']}, 出版社: {row['Publisher']}")
-        #st.image(row['Image-URL-M'])
+        st.image(row['Image-URL-M'])
         rating = st.selectbox(f"对 {row['Book-Title']} 评分:", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], key=f"rating_{row['ISBN']}")
         ratings[row["ISBN"]] = rating
 
     if st.button("提交评分"):
-        st.title("根据您的评分，使用 SVD 模型推荐以下书籍:")
+        st.title("根据您的评分，推荐以下书籍:")
         further_recommended_books = get_further_recommendations(ratings, books_df, filtered_ratings_df)
         if further_recommended_books is not None:
             for _, row in further_recommended_books.iterrows():
                 st.write(f"书名: {row['Book-Title']}, 作者: {row['Book-Author']}, 出版年份: {row['Year-Of-Publication']}, 出版社: {row['Publisher']}")
-                #st.image(row['Image-URL-M'])
+                st.image(row['Image-URL-M'])
         else:
             st.write("没有足够的数据来推荐更多书籍。")
 
