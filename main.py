@@ -1,7 +1,8 @@
 import pandas as pd
 import streamlit as st
-from sentence_transformers import SentenceTransformer, util
+from transformers import BertTokenizer, BertModel
 import torch
+from sklearn.metrics.pairwise import cosine_similarity
 from surprise import Dataset, Reader, SVD
 from surprise.model_selection import train_test_split
 
@@ -9,12 +10,14 @@ from surprise.model_selection import train_test_split
 st.set_option('deprecation.showPyplotGlobalUse', False)
 st.set_option('deprecation.showfileUploaderEncoding', False)
 
-# 加载多语言的 Sentence-Transformer 模型
+# 加载 BERT 模型和分词器
 @st.cache_resource
 def load_model():
-    return SentenceTransformer('distiluse-base-multilingual-cased-v1')
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    model = BertModel.from_pretrained('bert-base-uncased')
+    return tokenizer, model
 
-model = load_model()
+tokenizer, bert_model = load_model()
 
 # 读取 CSV 文件
 books_file_path = 'BooksTest.csv'
@@ -34,11 +37,14 @@ filtered_ratings_df = ratings_df[ratings_df['ISBN'].isin(books_df['ISBN'])]
 # 生成图书标题嵌入
 @st.cache_resource
 def generate_embeddings(texts):
-    return model.encode(texts, convert_to_tensor=True)
+    inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+    with torch.no_grad():
+        outputs = bert_model(**inputs)
+    return outputs.last_hidden_state.mean(dim=1)
 
 @st.cache_resource
 def get_book_embeddings():
-    return list(generate_embeddings(books_df['Book-Title'].values))
+    return generate_embeddings(books_df['Book-Title'].values)
 
 books_df['title_embedding'] = get_book_embeddings()
 
@@ -79,14 +85,12 @@ def get_further_recommendations(ratings, books_df, filtered_ratings_df):
     return recommended_books
 
 if st.button("关键词图书推荐") or input_keyword:
-    input_embedding = model.encode(input_keyword, convert_to_tensor=True)
-
-    # 将 title_embedding 转换为张量
-    title_embeddings_tensor = torch.stack(list(books_df['title_embedding']))
+    input_embedding = generate_embeddings([input_keyword]).squeeze()
 
     # 计算相似度
-    similarities = util.pytorch_cos_sim(input_embedding, title_embeddings_tensor)
-    books_df['similarity'] = similarities.cpu().numpy().flatten()
+    title_embeddings_matrix = torch.stack(books_df['title_embedding'].tolist()).numpy()
+    similarities = cosine_similarity(input_embedding.unsqueeze(0).numpy(), title_embeddings_matrix)
+    books_df['similarity'] = similarities.flatten()
 
     # 找到相似度最高的三本书
     recommended_books = books_df.nlargest(3, 'similarity')
@@ -94,7 +98,6 @@ if st.button("关键词图书推荐") or input_keyword:
     st.write("推荐书籍:")
     for _, row in recommended_books.iterrows():
         st.write(f"书名: {row['Book-Title']}, 作者: {row['Book-Author']}, 出版年份: {row['Year-Of-Publication']}, 出版社: {row['Publisher']}")
-        #st.image(row['Image-URL-M'])
         rating = st.selectbox(f"对 {row['Book-Title']} 评分:", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], key=f"rating_{row['ISBN']}")
         ratings[row["ISBN"]] = rating
 
@@ -104,7 +107,6 @@ if st.button("关键词图书推荐") or input_keyword:
         if further_recommended_books is not None:
             for _, row in further_recommended_books.iterrows():
                 st.write(f"书名: {row['Book-Title']}, 作者: {row['Book-Author']}, 出版年份: {row['Year-Of-Publication']}, 出版社: {row['Publisher']}")
-                #st.image(row['Image-URL-M'])
         else:
             st.write("没有足够的数据来推荐更多书籍。")
 
