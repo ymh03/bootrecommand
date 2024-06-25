@@ -56,7 +56,7 @@ def generate_embeddings(texts):
 
 @st.cache_resource
 def get_book_embeddings():
-    return generate_embeddings(books_df['Book-Title'].values)
+    return generate_embeddings(books_df['Book-Title'].tolist())
 
 books_df['title_embedding'] = get_book_embeddings()
 
@@ -80,7 +80,8 @@ def get_further_recommendations(ratings, books_df, filtered_ratings_df):
     # 预测用户评分
     user_id = 999999  # 为了进行预测，假设一个新的用户ID
     for isbn, rating in ratings.items():
-        svd.trainset.ur[user_id].append((svd.trainset.to_inner_iid(isbn), rating))
+        if isbn in svd.trainset._raw2inner_id_items:
+            svd.trainset.ur[user_id].append((svd.trainset.to_inner_iid(isbn), rating))
 
     # 预测评分
     all_books = books_df['ISBN'].unique()
@@ -97,7 +98,7 @@ def get_further_recommendations(ratings, books_df, filtered_ratings_df):
     return recommended_books
 
 if st.button("关键词图书推荐") or input_keyword:
-    input_embedding = generate_embeddings([input_keyword]).squeeze()
+    input_embedding = generate_embeddings(input_keyword).squeeze()
 
     # 计算相似度
     title_embeddings_matrix = torch.stack(books_df['title_embedding'].tolist()).numpy()
