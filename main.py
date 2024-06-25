@@ -94,7 +94,7 @@ if st.button("关键词图书推荐") or input_keyword:
     st.write("推荐书籍:")
     for _, row in recommended_books.iterrows():
         st.write(f"书名: {row['Book-Title']}, 作者: {row['Book-Author']}, 出版年份: {row['Year-Of-Publication']}, 出版社: {row['Publisher']}")
-        st.image(row['Image-URL-M'])
+        #st.image(row['Image-URL-M'])
         rating = st.selectbox(f"对 {row['Book-Title']} 评分:", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], key=f"rating_{row['ISBN']}")
         ratings[row["ISBN"]] = rating
 
@@ -104,7 +104,7 @@ if st.button("关键词图书推荐") or input_keyword:
         if further_recommended_books is not None:
             for _, row in further_recommended_books.iterrows():
                 st.write(f"书名: {row['Book-Title']}, 作者: {row['Book-Author']}, 出版年份: {row['Year-Of-Publication']}, 出版社: {row['Publisher']}")
-                st.image(row['Image-URL-M'])
+                #st.image(row['Image-URL-M'])
         else:
             st.write("没有足够的数据来推荐更多书籍。")
 
