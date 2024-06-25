@@ -4,20 +4,20 @@ import torch
 from sklearn.metrics.pairwise import cosine_similarity
 from surprise import Dataset, Reader, SVD
 from surprise.model_selection import train_test_split
-from transformers import BertTokenizer, BertModel
+from sentence_transformers import SentenceTransformer
 
 # 隐藏Streamlit警告信息
 st.set_option('deprecation.showPyplotGlobalUse', False)
 st.set_option('deprecation.showfileUploaderEncoding', False)
 
-# 加载 BERT 模型和分词器
+# 加载 SentenceTransformer 模型
 @st.cache_resource
 def load_model():
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained('bert-base-uncased')
-    return tokenizer, model
+    #使用bert模型进行关键字推荐
+    model = SentenceTransformer('bert-base-nli-mean-tokens')
+    return model
 
-tokenizer, bert_model = load_model()
+bert_model = load_model()
 
 # 读取 CSV 文件
 books_file_path = 'BooksTest.csv'
@@ -37,20 +37,8 @@ filtered_ratings_df = ratings_df[ratings_df['ISBN'].isin(books_df['ISBN'])]
 # 生成图书标题嵌入
 @st.cache_resource
 def generate_embeddings(texts):
-    # 如果输入是单个文本，则转换为列表，以便适应tokenizer的要求
-    if isinstance(texts, str):
-        texts = [texts]
-
-    # 使用tokenizer对文本进行分词和编码
-    inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
-
-    # 使用BertModel生成文本的嵌入
-    with torch.no_grad():
-        outputs = bert_model(**inputs)
-
-    # 取得最后一层的隐藏状态，并计算平均值作为嵌入表示
-    embeddings = outputs.last_hidden_state.mean(dim=1)
-
+    # 使用 SentenceTransformer 生成文本嵌入
+    embeddings = bert_model.encode(texts, convert_to_tensor=True)
     return embeddings
 
 @st.cache_resource
@@ -99,7 +87,7 @@ def get_further_recommendations(ratings, books_df, filtered_ratings_df):
     return recommended_books
 
 if st.button("关键词图书推荐") or input_keyword:
-    input_embedding = generate_embeddings(input_keyword).squeeze().unsqueeze(0)
+    input_embedding = generate_embeddings([input_keyword]).squeeze().unsqueeze(0)
 
     # 计算相似度
     title_embeddings_matrix = torch.stack([torch.tensor(embed) for embed in books_df['title_embedding']]).numpy()
