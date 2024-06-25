@@ -1,10 +1,10 @@
 import pandas as pd
 import streamlit as st
-from transformers import BertTokenizer, BertModel
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
 from surprise import Dataset, Reader, SVD
 from surprise.model_selection import train_test_split
+from transformers import BertTokenizer, BertModel
 
 # 隐藏Streamlit警告信息
 st.set_option('deprecation.showPyplotGlobalUse', False)
